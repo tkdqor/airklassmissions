@@ -83,7 +83,7 @@ class User(AbstractBaseUser):
         return True
 
     def has_module_perms(self, app_label):
-        """ "
+        """
         # 로그인 사용자의 특정 app에 접근 가능 여부를 설정, app_label에는 app 이름이 들어간다.
         # admin일 경우 항상 True, 비활성 사용자(is_active=False)의 경우 항상 False
         """
@@ -95,10 +95,16 @@ class User(AbstractBaseUser):
         return self.is_admin
 
 
-# django Signal을 이용하여 User 모델 생성 시, is_master 필드값이 True라면 Master 모델 객체 생성
 @receiver(post_save, sender=User)
 def on_save_user(sender, instance, **kwargs):
-    if instance.is_master == True:
+    """
+    Assignee : 상백
+
+    django Signal을 이용하여 User 모델 생성 시, is_master 필드값이 True라면 Master 모델 객체 생성
+    """
+
+    master = Master.objects.filter(user=instance).first()
+    if master is None and instance.is_master == True:
         username = instance.username
         email = instance.email
         Master.objects.create(user=instance, username=username, email=email)
