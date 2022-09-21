@@ -1,5 +1,9 @@
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+from contentshub.models import Master
 
 
 class CustomUserManager(BaseUserManager):
@@ -38,6 +42,7 @@ class User(AbstractBaseUser):
     AbstractBaseUser 클래스를 상속받아 User 모델을 정의합니다.
     id를 PK로 설정하고 로그인 시 email 필드가 사용되도록 설정합니다.
     is_master 필드를 생성하여 회원가입 시, 수강생으로 가입을 하는 경우에는 False / 강사로 가입을 하는 경우에는 True로 설정합니다.
+    django Signal를 사용해서 is_master 필드값이 True인 경우, 자동으로 Master 모델 객체를 생성해줍니다.
     """
 
     id = models.BigAutoField(primary_key=True)
@@ -88,3 +93,12 @@ class User(AbstractBaseUser):
     def is_staff(self):
         """admin 권한 설정"""
         return self.is_admin
+
+
+# django Signal을 이용하여 User 모델 생성 시, is_master 필드값이 True라면 Master 모델 객체 생성
+@receiver(post_save, sender=User)
+def on_save_user(sender, instance, **kwargs):
+    if instance.is_master == True:
+        username = instance.username
+        email = instance.email
+        Master.objects.create(user=instance, username=username, email=email)
