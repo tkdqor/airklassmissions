@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 
 from contentshub.models import Klass
 
+from .models import Question
 from .serializers import QuestionModelSerializer
 
 
@@ -33,12 +34,51 @@ class QuestionCreateAPIView(APIView):
         try:
             klass = Klass.objects.get(id=klass_id)
             context = {"user": request.user, "klass": klass}
-            serializer = QuestionModelSerializer(data=request.data, context=context)  # noqa
+            serializer = QuestionModelSerializer(data=request.data, context=context)
             if serializer.is_valid():
                 serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)  # noqa
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)  # noqa
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Klass.DoesNotExist:
+            return Response({"error": "해당 klass_id로 존재하는 강의가 없습니다. 다시 한 번 확인해주세요!"}, status=status.HTTP_404_NOT_FOUND)
+
+
+# url : PATCH /api/v1/questions/<question_id>
+class QuestionDeleteAPIView(APIView):
+    """
+    Assignee : 상백
+
+    permission = 서비스에 로그인한 모든 유저가 요청 가능
+    Http method = PATCH
+    PATCH : 유저가 생성한 질문 삭제 및 복구
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, question_id):
+        """
+        Assignee : 상백
+
+        로그인한 유저가 생성한 질문을 삭제하기 위한 메서드입니다. 특정 질문의 id값을 path 파라미터로 입력해야 합니다.
+        question_id로 존재하는 객체가 없다면 에러 메시지를 응답합니다.
+        is_deleted 필드를 true로 설정 후 JSON 형태로 요청하면 삭제 처리가 되고, false로 설정 후 JSON 형태로 요청하면 복구가 됩니다.
+        ex) {"is_deleted": true} 또는 {"is_deleted": false}
+        """
+
+        if request.data.get("contents", None):
+            return Response({"error": "변경할 수 없는 정보입니다. is_deleted만 수정이 가능합니다."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            question = Question.objects.get(id=question_id, user=request.user)
+            if request.data["is_deleted"] == True:
+                question.is_deleted = True
+                question.save()
+                return Response({"message": "해당 질문을 삭제했습니다!"}, status=status.HTTP_200_OK)
+            elif request.data["is_deleted"] == False:
+                question.is_deleted = False
+                question.save()
+                return Response({"message": "해당 질문을 복구했습니다!"}, status=status.HTTP_200_OK)
+        except Question.DoesNotExist:
             return Response(
-                {"error": "해당 klass_id로 존재하는 강의가 없습니다. 다시 한 번 확인해주세요!"}, status=status.HTTP_404_NOT_FOUND  # noqa
-            )  # noqa
+                {"error": "해당 question_id로 존재하는 질문이 없습니다. 다시 한 번 확인해주세요!"}, status=status.HTTP_404_NOT_FOUND
+            )
