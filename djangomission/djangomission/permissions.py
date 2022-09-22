@@ -5,7 +5,8 @@ class IsOwner(BasePermission):
     """
     Assignee : 상백
 
-    has_permission : 로그인이 된 유저 중 is_master 필드가 True인 강사만 접근 가능
+    has_permission
+    로그인이 된 유저 중 is_master 필드가 True인 강사만 접근 가능
     hasattr로 로그인이 된 유저가 master 객체와 관계가 있는지 확인
     일반 유저가 접근 시 에러 발생
     """

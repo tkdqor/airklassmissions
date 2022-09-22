@@ -7,9 +7,9 @@ exclude =
     __pycache__,
 ignore =
     E203,
-    E501,
     E712,
     E722,
     W503,
     E712,
-    F401
+    F401,
+    E501,
