@@ -7,10 +7,37 @@ from contentshub.models import Klass
 from djangomission.permissions import IsOwner
 
 from .models import Question
-from .serializers import AnswerModelSerializer, QuestionModelSerializer
+from .serializers import AnswerModelSerializer, KlassModelSerializer, QuestionModelSerializer
 
 
-# url : POST /api/v1/klasses/<klass_id>
+# url : GET /api/v1/klasses/<klass_id>
+class KlassRetrieveAPIView(APIView):
+    """
+    Assignee : 상백
+
+    permission = 서비스에 로그인한 모든 유저가 요청 가능
+    Http method = GET
+    GET : 특정 강의에 작성된 질문과 답변 조회
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, klass_id):
+        """
+        Assignee : 상백
+
+        특정 강의를 조회하기 위한 메서드입니다. 특정 강의의 id값을 path 파라미터로 입력해야 합니다.
+        klass_id로 존재하는 객체가 없다면 에러 메시지를 응답합니다.
+        """
+
+        try:
+            klass = Klass.objects.get(id=klass_id)
+            return Response(KlassModelSerializer(klass).data, status=status.HTTP_200_OK)
+        except Klass.DoesNotExist:
+            return Response({"error": "해당 klass_id로 존재하는 강의가 없습니다. 다시 한 번 확인해주세요!"}, status=status.HTTP_404_NOT_FOUND)
+
+
+# url : POST /api/v1/klasses/<klass_id>/questions
 class QuestionCreateAPIView(APIView):
     """
     Assignee : 상백
