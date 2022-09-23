@@ -49,9 +49,9 @@ class QuestionDeleteAPIView(APIView):
     """
     Assignee : 상백
 
-    permission = 서비스에 로그인한 모든 유저가 요청 가능
+    permission = 서비스에 로그인한 모든 유저가 요청 가능(유저 및 강사)
     Http method = PATCH
-    PATCH : 유저가 생성한 질문 삭제 및 복구
+    PATCH : 유저가 생성한 질문 삭제 및 복구 / 강사가 생성한 강의에 달린 질문 삭제 및 복구
     """
 
     permission_classes = [IsAuthenticated]
@@ -60,20 +60,29 @@ class QuestionDeleteAPIView(APIView):
         """
         Assignee : 상백
 
-        로그인한 유저가 생성한 질문을 삭제하기 위한 메서드입니다. 특정 질문의 id값을 path 파라미터로 입력해야 합니다.
-        question_id로 존재하는 객체가 없다면 에러 메시지를 응답합니다.
+        로그인된 유저가 생성한 질문 삭제/복구 및 강사가 생성한 강의에 달린 질문 삭제/복구 메서드입니다.
+        특정 질문의 id값을 path 파라미터로 입력해야 합니다. question_id로 존재하는 객체가 없다면 에러 메시지를 응답합니다.
         is_deleted 필드를 true로 설정 후 JSON 형태로 요청하면 삭제 처리가 되고, false로 설정 후 JSON 형태로 요청하면 복구가 됩니다.
         ex) {"is_deleted": true} 또는 {"is_deleted": false}
-        추가로, 유저가 답변이 달린 질문은 삭제가 불가능하게끔 hasattr 메서드로 question 객체가 answer 객체를 가지고 있는지 확인
+        유저가 답변이 달린 질문은 삭제가 불가능하게끔 hasattr 메서드로 question 객체가 answer 객체를 가지고 있는지 확인합니다.
+        강사로 로그인한 경우, 강사가 생성한 강의에 대해서만 질문을 삭제/복구할 수 있습니다.
         """
 
         if request.data.get("contents", None):
             return Response({"error": "변경할 수 없는 정보입니다. is_deleted만 수정이 가능합니다."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            question = Question.objects.get(id=question_id, user=request.user)
+            if hasattr(request.user, "user_master"):
+                question = Question.objects.get(id=question_id)
+                if question.klass.master.id != request.user.user_master.id:
+                    return Response(
+                        {"error": "해당 강의는 지금 로그인된 강사의 강의가 아닙니다. 다시 한 번 확인해주세요!"}, status=status.HTTP_404_NOT_FOUND
+                    )
+            else:
+                question = Question.objects.get(id=question_id, user=request.user)
+
             if request.data["is_deleted"] == True:
-                if hasattr(question, "question_answer"):
+                if hasattr(question, "question_answer") and (request.user.is_master == False):
                     return Response({"error": "답변이 있는 질문은 삭제할 수 없습니다!"}, status=status.HTTP_400_BAD_REQUEST)
                 else:
                     question.is_deleted = True
@@ -83,6 +92,7 @@ class QuestionDeleteAPIView(APIView):
                 question.is_deleted = False
                 question.save()
                 return Response({"message": "해당 질문을 복구했습니다!"}, status=status.HTTP_200_OK)
+
         except Question.DoesNotExist:
             return Response(
                 {"error": "해당 question_id로 존재하는 질문이 없습니다. 다시 한 번 확인해주세요!"}, status=status.HTTP_404_NOT_FOUND
