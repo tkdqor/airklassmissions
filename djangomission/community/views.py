@@ -4,9 +4,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from contentshub.models import Klass
+from djangomission.permissions import IsOwner
 
 from .models import Question
-from .serializers import QuestionModelSerializer
+from .serializers import AnswerModelSerializer, QuestionModelSerializer
 
 
 # url : POST /api/v1/klasses/<klass_id>
@@ -78,6 +79,46 @@ class QuestionDeleteAPIView(APIView):
                 question.is_deleted = False
                 question.save()
                 return Response({"message": "해당 질문을 복구했습니다!"}, status=status.HTTP_200_OK)
+        except Question.DoesNotExist:
+            return Response(
+                {"error": "해당 question_id로 존재하는 질문이 없습니다. 다시 한 번 확인해주세요!"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+
+# url : POST /api/v1/questions/<question_id>/answer
+class AnswerCreateAPIView(APIView):
+    """
+    Assignee : 상백
+
+    permission = 로그인된 강사만 요청 가능
+    Http method = POST
+    POST : 강사가 생성한 강의에 달린 질문에 답변 생성
+    """
+
+    permission_classes = [IsOwner]
+
+    def post(self, request, question_id):
+        """
+        Assignee : 상백
+
+        클라이언트의 요청 및 JSON 형태 데이터 입력 시, 강사가 생성한 강의에 달린 질문에 대한 답변 데이터를 생성하는 메서드입니다.
+        ex) {"contents": "기타를 잡는 손가락 위치가 잘못되었을 수 있습니다. 제 강의에도 있으니 참고해 주시면 감사하겠습니다:)"}
+        또한, 특정 질문의 id값을 path 파라미터로 입력해야 합니다.
+        그리고 context 딕셔너리로 로그인된 강사 객체 및 질문 객체를 보내서 클라이언트가 따로 입력하지 않게 설정했습니다.
+        """
+
+        try:
+            question = Question.objects.get(id=question_id)
+            if question.klass.master.id != request.user.user_master.id:
+                return Response(
+                    {"error": "해당 강의는 지금 로그인된 강사의 강의가 아닙니다. 다시 한 번 확인해주세요!"}, status=status.HTTP_404_NOT_FOUND
+                )
+            context = {"question": question, "master": request.user.user_master}
+            serializer = AnswerModelSerializer(data=request.data, context=context)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Question.DoesNotExist:
             return Response(
                 {"error": "해당 question_id로 존재하는 질문이 없습니다. 다시 한 번 확인해주세요!"}, status=status.HTTP_404_NOT_FOUND
