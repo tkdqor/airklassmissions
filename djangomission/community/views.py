@@ -64,6 +64,7 @@ class QuestionDeleteAPIView(APIView):
         question_id로 존재하는 객체가 없다면 에러 메시지를 응답합니다.
         is_deleted 필드를 true로 설정 후 JSON 형태로 요청하면 삭제 처리가 되고, false로 설정 후 JSON 형태로 요청하면 복구가 됩니다.
         ex) {"is_deleted": true} 또는 {"is_deleted": false}
+        추가로, 유저가 답변이 달린 질문은 삭제가 불가능하게끔 hasattr 메서드로 question 객체가 answer 객체를 가지고 있는지 확인
         """
 
         if request.data.get("contents", None):
@@ -72,9 +73,12 @@ class QuestionDeleteAPIView(APIView):
         try:
             question = Question.objects.get(id=question_id, user=request.user)
             if request.data["is_deleted"] == True:
-                question.is_deleted = True
-                question.save()
-                return Response({"message": "해당 질문을 삭제했습니다!"}, status=status.HTTP_200_OK)
+                if hasattr(question, "question_answer"):
+                    return Response({"error": "답변이 있는 질문은 삭제할 수 없습니다!"}, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    question.is_deleted = True
+                    question.save()
+                    return Response({"message": "해당 질문을 삭제했습니다!"}, status=status.HTTP_200_OK)
             elif request.data["is_deleted"] == False:
                 question.is_deleted = False
                 question.save()
