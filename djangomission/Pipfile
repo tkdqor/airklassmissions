@@ -14,6 +14,8 @@ black = "*"
 flake8 = "*"
 pre-commit = "*"
 djangorestframework-simplejwt = "*"
+pytest = "*"
+pytest-django = "*"
 
 [dev-packages]
 
